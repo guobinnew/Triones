@@ -39,6 +39,7 @@
               </Row>
             </Content>
       </Layout>
+      <input type="file" id="trionesfile" style="display: none" @change="loadLocalFile">
   </div>
 </template>
 
@@ -186,13 +187,28 @@
         this.preview.canvas.height = row.clientHeight
         this.previewCard()
       },
+      imageTobase64(img, size = 128) {
+        if (!img) {
+          return null
+        }
+        // 计算缩放比例
+        let zoom = 1.0 / Math.max(img.width / size, img.height / size)
+        let canvas = document.createElement("canvas")
+        canvas.width = img.width * zoom
+        canvas.height = img.height * zoom
+        let ctx = canvas.getContext("2d")
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        return canvas.toDataURL("image/png")
+      },
       handleUpload (file) {
+        // 转换为Base64
+        this.card.form.iconBase64 = null
         this.card.form.icon = window.URL.createObjectURL(file)
         this.preview.icon.src = this.card.form.icon
         return false
       },
       handleClearIcon () {
-        this.card.form.iconFile = null
+        this.card.form.iconBase64 = null
         this.card.form.icon = '/img/default.jpeg'
         this.previewCard()
       },
@@ -356,7 +372,7 @@
                 },
                 on: {
                   click: () => { // 从文件加载
-                   
+                    this.loadFromFile()
                   }
                 }
               })
@@ -373,7 +389,7 @@
                 },
                 on: {
                   click: () => { // 保存到文件
-                    
+                    this.saveToFile()
                   }
                 }
               })
@@ -516,7 +532,6 @@
         parent.children.splice(index, 1);
       },
       showCard (data){
-        console.log('showCard', data)
         this.card.form.uid = data.uid
         this.card.form.title = data.title
         this.card.form.icon = data.form.icon
@@ -533,7 +548,11 @@
         
         host.title = this.card.form.title
         host.form.title = this.card.title
-        host.form.icon = this.card.form.icon
+        if (this.card.form.icon !== '/img/default.jpeg') {
+          host.form.icon = this.card.form.iconBase64
+        } else {
+          host.form.icon = this.card.form.icon
+        }
         host.form.command = this.card.form.command
       },
       addCategory(parent) {
@@ -630,6 +649,78 @@
         })
         delete this.tree.nodeIndex[uid]
         parent.children.splice(index,1)
+      },
+      loadLocalFile() {
+        let selectedFile = this.$el.querySelector('#trionesfile').files[0]
+        let name = selectedFile.name
+        let size = selectedFile.size //读取选中文件的大小
+        if (size === 0){
+            this.$Message.error({
+              content: `File <${name}> is empty`,
+              duration: 2
+            })
+           return
+        }
+        let reader = new FileReader()   
+        reader.onload = (evt) => {
+          // 读取js文件
+          let json = JSON.parse(evt.target.result)
+          console.log(json)
+          this.tree.nodeIndex = {}
+          // 遍历树结构
+          const walk = (node) => {
+            if (Utils.common.isArray(node)) {
+              for(let n of node) {
+                walk(n)
+              }
+            } else if (Utils.common.isObject(node)){
+              node.selected = false
+              node.expand = true
+              if (node.type === 'category') {
+                if (!node.children) {
+                  node.children = []
+                }
+              }
+              this.tree.nodeIndex[node.uid] = node
+            }
+          }
+          walk(json)
+          this.tree.data[0].children = json
+        }
+        reader.readAsText(selectedFile)
+      },
+      loadFromFile() {
+        this.$el.querySelector('#trionesfile').click()
+      },
+      saveToFile() {
+          let json = []
+          // 遍历树结构
+          const walk = (node, parent) => {
+            if (Utils.common.isArray(node)) {
+              for(let n of node) {
+                walk(n, parent)
+              }
+            } else if (Utils.common.isObject(node)){
+              console.log('walk', node)
+              let child = {
+                uid: node.uid,
+                title: node.title,
+                type: node.type,
+              }
+              if (node.type === 'category') {
+                child.children = []
+                walk(node.children, child.children)
+              } else {
+                child.icon = node.form.icon
+                child.command = node.form.command
+              }
+              parent.push(child)
+            }
+          }
+          walk(this.tree.data[0].children, json)
+
+          let blob = new Blob([JSON.stringify(json)], {type: "text/plain;charset=utf-8"})
+          FileSaver.saveAs(blob, 'Triones-' + Utils.common.currentDateString(true) + ".json")
       }
     },
     mounted: function () {
@@ -651,6 +742,7 @@
       this.preview.icon = new Image()
       this.preview.icon.addEventListener('load', () => {
         console.log('icon loaded')
+        this.card.form.iconBase64 = this.imageTobase64(this.preview.icon)
         this.previewCard()
       })
 
