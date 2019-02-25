@@ -1,0 +1,391 @@
+<template>
+  <div class="container" v-resize="onContainerResize">
+      <Layout :style="{height: '100%',color:'#fff', textAlign:'left'}">
+            <Sider hide-trigger width="300">
+              <Tree :data="tree" :render="renderContent"></Tree>
+            </Sider>
+            <Content :style="{overflow:'hidden', minWidth:'600px'}">
+              <Row id="row" :style="{position:'relative',height:'100%'}">
+                <Col span="12" class="left-panel">
+                  <Form :model="card.form" :label-width="80">
+                    <FormItem label="Title">
+                      <Input v-model="card.form.title" placeholder="Enter card title..." @on-change="handleTitleChange"></Input>
+                    </FormItem>
+                    <FormItem label="Icon">
+                      <Upload 
+                        :before-upload="handleUpload"
+                        action="/"
+                        :format="['jpg','jpeg','png']"
+                        :max-size="4096"
+                        style="display: inline-block; margin-right: 4px">
+                        <Button icon="ios-cloud-upload-outline">Select icon file</Button>
+                      </Upload>
+                      <Button type="primary" @click="handleClearIcon">Clear</Button>
+                      <div class="upload-img">
+                        <img id="iconImg" :src="card.form.icon">
+                      </div>
+                    </FormItem>
+                    <FormItem label="Command">
+                      <Input v-model="card.form.command" placeholder="Enter card command..." @on-change="handleCommandChange"></Input>
+                    </FormItem>
+                    <FormItem>
+                      <Button type="primary">Save</Button>
+                    </FormItem>
+                  </Form>
+                </Col>
+                <Col span="12" class="right-panel">
+                  <canvas class="card-preview"></canvas>
+                </Col>
+              </Row>
+            </Content>
+      </Layout>
+  </div>
+</template>
+
+<style scoped>
+.container {
+  overflow: hidden;
+  height: 100%;
+}
+
+#scene {
+  width: 100%;
+  height: 100%;
+  background-color: #fff;
+}
+
+.menu {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  text-align: left;
+  margin-left: 40px;
+  margin-top: 10px;
+}
+
+.ivu-dropdown {
+  margin-left: 10px;
+}
+
+.split-pane{
+  padding: 10px;
+  height: 80%;
+  position: relative;
+}
+
+.upload-img{
+  width: 128px;
+  height: 128px;
+  text-align: center;
+  line-height: 128px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+  position: relative;
+  box-shadow: 0 1px 1px rgba(0,0,0,.2);
+  margin-right: 4px;
+}
+
+.upload-img img{
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.left-panel {
+  padding: 10px;
+  width: 50%;
+  display: inline-block;
+}
+
+.right-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.card-preview {
+  height: 100%;
+  width: 100%;
+  min-width: 300px;
+}
+
+</style>
+
+<script>
+  import resize from 'vue-resize-directive'
+  import FileSaver from 'file-saver'
+  import LocalForage from 'localforage'
+  import QRCode from 'qrcode'
+
+  export default {
+    components: {},
+    data: function () {
+      return {
+        size: {
+          width: 0,
+          height: 0
+        },
+        split: 0.3,
+        card: {
+          logo: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAEeElEQVR4Xu1bgXHUMBBcVQCpAFIBoQKSCoAKgAqACiAVkFQAqSBJBZAKIBWQVEBSgZjVyx+98dt7suQ3868ZZpiJX75b3e3tnf4dtny5LfcfOwB2EbDlCOxSYMsDYEeCuxSYTwr4xwCePdjjrqawbYMR4J8CeAngMP4jAO11A+AXgB8AzgB3VxqUDQAQHP8C4FWGM98AnAKOoBRZEwPgPwH4XMDyEwDHJSJiQgD8VwBvCzjfbMH0eD02GiYCwH+PeV7Q/7AVOeFoDAgTAOAZ8gz9Wosg7OemQ2UA/AGAn7U8T/YlMX7IeU9tAGqFfpevTAWWS9OqCEAod79N1ox7+BJw5tJaEwBr7t9GwUN2pyiiM0+MmOxZuaAmAMx9coCyWNM79IEnCBQ/j5RNALwDHJ+XV00AvGjFAIEFImVuKyCYybASAKGx+SMCIIStp4CikBpaV4BjbyGvWgDQCFaAoSUaLAMq7vdg1qYBMISsV1LqvwNgDfm1A0cWVGyZTf3GpiNArN2ynBYBrZICIU854KAA4v8VaSqGrFdLqlkNFogAT8Jjs2Ni33gGd4Db62dKk6IUKsrq20YAEPKSk50cx1Mr2NNfrAfBM5L4nqElRlMRAILzLHNdc7whQ9t/HyAuOfw/Ao6TItPKiACZkVVDetLAFP7PcwYjRgCCQSSkEicvpIHM/reAo23mZQWgVn+/Jg0822nFMXP9b5AyABDYXpG35lMAcAO4/dUPmlLNXP5yACBTs87XWpzrcRYQl2db+0Z4WXb4c28xAuRmRLB37SNJOQzvY/grXGNWf6kFKgCW8Odkh+WI01rq8hciKokjcvvLrVuRI74tPqYCoI637hekld7heQ4zFBBSAFTpew04derUiUxpADraW/k0IwAm8jOPwNoozBEAlfzuAadwRG9OqACoepx5T0UW2TyQGUunEqbHkTvUUZphmLIeAxUACwkShEaTc6qrOE8Lj2JjpV6jjSK/HB2gjKRsFLzytHOA5+krYS0OUobNESOAG/maQugSAPdXJr8xWuzXYF1wWACwpMEw9KtPMPzpvKL7Rym/zCpglqcWAHj61BnqLfLo0pehBJcAMD/J8MotjQJCFE4BgPfCB4qUvhEABC6wXFX1+UTnDxdDDJn8Run+kRyQfnw0CKnzFm4xDz2HospAgu2tgshhvVda1vTDZ4uRedMvyFOf7KFHHwgjAFjyAk+QXR9Fzzpu4ImzKTr591scniAq+T8wPR466+6/FwBgJTUIBktZU85ImJz29Hx1Re0WKZTKryqb2sy0AhBSjxFDyd33jVHqhWTCNEkE2FxfPK0CEErlabwkUS5ApYoxhwhQhy1WdCXBNAcASJ7nVu+E56WLkhkAENKA+VxKXXJDuV+YCwCl00C+J5wLAGR2Mrr1e4FdmWAalM4EgGI9BgXXgVL+GuRmBEAAgQKKg5Hkt0MC3S0euV6o0eHan+44MwCW8ppDWPKCQow8dcppymzzb4pmCsASCJbIZrCaRgVPu/kx1UWO480b/gILMS5Qwwr0BAAAAABJRU5ErkJggg==',
+          form: {
+            title: '',
+            icon: '/img/default.jpeg',
+            iconFile: null,
+            command: '',
+          },
+          style: {
+            borderWidth: 10,
+            borderColor: '#ff0000',
+            size: 256,
+            qrcodeSize: 128,
+            qrcodeColor: '#000000',
+            logoSize: 32
+          }
+        },
+        tree: [
+          {
+            title: 'Root',
+            type: 'root',
+            expand: true,
+            children: [
+              {
+                title: 'c1',
+                type: 'category',
+                expand: true,
+                children: [
+                  {
+                    title: 'card1',
+                    type: 'card',
+                   },
+                ]
+              }
+            ]
+          }
+        ],
+        buttonProps: {
+          type: 'default',
+          size: 'small',
+        },
+        preview: {
+          canvas: null,
+          qrcode: null,
+          logo: null
+        }
+      }
+    },
+    directives: {
+      resize,
+    },
+    computed: {
+    },
+    methods: {
+      onContainerResize() {
+        this.size.width = this.$el.clientWidth
+        this.size.height = this.$el.clientHeight
+
+        let row = this.$el.querySelector('#row')
+        this.preview.canvas.width = row.clientWidth / 2
+        this.preview.canvas.height = row.clientHeight
+        this.previewCard()
+      },
+      handleUpload (file) {
+        this.card.form.iconFile = file
+        this.card.form.icon = window.URL.createObjectURL(file)
+        // 刷新预览
+        this.previewCard()
+        return false
+      },
+      handleClearIcon () {
+        this.card.form.iconFile = null
+        this.card.form.icon = '/img/default.jpeg'
+        this.previewCard()
+      },
+      createQr ( text, size = 128 ) {
+        let canvas = document.createElement('canvas')
+	      canvas.width = size
+        canvas.height = size
+        QRCode.toDataURL(text, { 
+          errorCorrectionLevel: 'H',
+          width: 256,
+          margin: 0 })
+        .then(url => {
+          console.log(url)
+          this.preview.qrcode.src = url
+        })
+        .catch(err => {
+          console.error(err)
+        })
+      },
+      clearCanvas() {
+        let ctx = this.preview.canvas.getContext("2d")
+        ctx.clearRect(0, 0, this.preview.canvas.width, this.preview.canvas.height)
+      },
+      drawRoundRect(ctx, x, y, width, height, radius){
+        ctx.beginPath()
+        ctx.arc(x + radius, y + radius, radius, Math.PI, Math.PI * 3 / 2)
+        ctx.lineTo(width - radius + x, y)
+        ctx.arc(width - radius + x, radius + y, radius, Math.PI * 3 / 2, Math.PI * 2)
+        ctx.lineTo(width + x, height + y - radius)
+        ctx.arc(width - radius + x, height - radius + y, radius, 0, Math.PI * 1 / 2)
+        ctx.lineTo(radius + x, height +y)
+        ctx.arc(radius + x, height - radius + y, radius, Math.PI * 1 / 2, Math.PI)
+        ctx.closePath()
+      },
+      previewCard() {
+        this.clearCanvas()
+
+        let offsetx = (this.preview.canvas.width - this.card.style.size) / 2
+        let offsety = 20
+        // 居中显示
+        let ctx = this.preview.canvas.getContext("2d")
+        ctx.lineWidth = this.card.style.borderWidth
+        ctx.fillStyle = '#ffffff'
+        ctx.strokeStyle = this.card.style.borderColor
+        ctx.rect(offsetx, offsety, this.card.style.size,  this.card.style.size)
+        ctx.fill()
+        ctx.stroke()
+
+        // QrCode
+        if (this.preview.qrcode.complete) {
+          console.log('draw image')
+          let qrx = offsetx + (this.card.style.size - this.card.style.qrcodeSize) / 2
+          let qry = 40
+          ctx.drawImage(this.preview.qrcode, qrx, qry, this.card.style.qrcodeSize, this.card.style.qrcodeSize)
+
+          if (this.preview.logo.complete) {
+            let logox = qrx + (this.card.style.qrcodeSize - this.card.style.logoSize) / 2
+            let logoy = qry + (this.card.style.qrcodeSize - this.card.style.logoSize) / 2
+
+            // 绘制背景
+            this.drawRoundRect(ctx, logox, logoy, this.card.style.logoSize, this.card.style.logoSize, 4)
+            ctx.fill()
+
+            // 绘制logo
+            let margin = 2
+            ctx.drawImage(this.preview.logo, logox + margin, logoy + margin, this.card.style.logoSize - margin * 2, this.card.style.logoSize - margin * 2)
+
+          }
+        }
+
+        // Icon
+        console.log('icon', this.card.form.icon)
+        if (this.card.form.icon !== '/img/default.jpeg') {
+
+
+        } else {
+          console.log('title', this.card.form.title)
+          // Title
+          let title = this.card.form.title
+          let fontSize = 48
+          ctx.font = `bold ${fontSize}px Arial`
+ 
+          let titleWidth = ctx.measureText(title).width
+          while ( titleWidth > (this.card.style.size - 40)){
+            // 调整字体大小
+            fontSize -= 2 
+            ctx.font = `bold ${fontSize}px Arial`
+            titleWidth = ctx.measureText(title).width
+          }
+
+          ctx.textAlign = 'center'
+          ctx.fillStyle = '#000000'
+          ctx.fillText(title, offsetx + this.card.style.size / 2, offsety + this.card.style.size * 3.0 / 4 + 20 )
+        }
+
+
+        
+      },
+      handleTitleChange(evt) {
+        console.log('title changed')
+        this.previewCard()
+      },
+      handleCommandChange(evt) {
+        this.createQr( this.card.form.command)
+      },
+      renderContent (h, { root, node, data }) {
+                return h('span', {
+                    style: {
+                        display: 'inline-block',
+                        width: '100%'
+                    }
+                }, [
+                    h('span', [
+                        h('Icon', {
+                            props: {
+                                type: 'ios-paper-outline'
+                            },
+                            style: {
+                                marginRight: '8px'
+                            }
+                        }),
+                        h('span', data.title)
+                    ]),
+                    h('span', {
+                        style: {
+                            display: 'inline-block',
+                            float: 'right',
+                            marginRight: '32px'
+                        }
+                    }, [
+                        h('Button', {
+                            props: Object.assign({}, this.buttonProps, {
+                                icon: 'ios-add'
+                            }),
+                            style: {
+                                marginRight: '8px'
+                            },
+                            on: {
+                                click: () => { this.append(data) }
+                            }
+                        }),
+                        h('Button', {
+                            props: Object.assign({}, this.buttonProps, {
+                                icon: 'ios-remove'
+                            }),
+                            on: {
+                                click: () => { this.remove(root, node, data) }
+                            }
+                        })
+                    ])
+                ]);
+            },
+            append (data) {
+                const children = data.children || [];
+                children.push({
+                    title: 'appended node',
+                    expand: true
+                });
+                this.$set(data, 'children', children);
+            },
+            remove (root, node, data) {
+                const parentKey = root.find(el => el === node).parent;
+                const parent = root.find(el => el.nodeKey === parentKey).node;
+                const index = parent.children.indexOf(data);
+                parent.children.splice(index, 1);
+            }
+    },
+    mounted: function () {
+      // 随窗口动态改变大小
+      this.size.width = this.$el.clientWidth
+      this.size.height = this.$el.clientHeight
+
+      this.preview.canvas = this.$el.querySelector('.card-preview')
+      let row = this.$el.querySelector('#row')
+      this.preview.canvas.width = row.clientWidth / 2
+      this.preview.canvas.height = row.clientHeight
+
+      this.preview.qrcode = new Image()
+      this.preview.qrcode.addEventListener('load', () => {
+        console.log('img loaded')
+        this.previewCard()
+      })
+
+      this.preview.logo = new Image()
+      this.preview.logo.src = this.card.logo
+      this.previewCard()
+    }
+  }
+</script>
