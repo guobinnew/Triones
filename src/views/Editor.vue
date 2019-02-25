@@ -133,7 +133,6 @@
           form: {
             title: '',
             icon: '/img/default.jpeg',
-            iconFile: null,
             command: '',
           },
           style: {
@@ -172,7 +171,8 @@
         preview: {
           canvas: null,
           qrcode: null,
-          logo: null
+          logo: null,
+          icon: null
         }
       }
     },
@@ -192,10 +192,8 @@
         this.previewCard()
       },
       handleUpload (file) {
-        this.card.form.iconFile = file
         this.card.form.icon = window.URL.createObjectURL(file)
-        // 刷新预览
-        this.previewCard()
+        this.preview.icon.src = this.card.form.icon
         return false
       },
       handleClearIcon () {
@@ -244,9 +242,8 @@
         ctx.lineWidth = this.card.style.borderWidth
         ctx.fillStyle = '#ffffff'
         ctx.strokeStyle = this.card.style.borderColor
-        ctx.rect(offsetx, offsety, this.card.style.size,  this.card.style.size)
-        ctx.fill()
-        ctx.stroke()
+        ctx.fillRect(offsetx, offsety, this.card.style.size,  this.card.style.size)
+        ctx.strokeRect(offsetx, offsety, this.card.style.size,  this.card.style.size)
 
         // QrCode
         if (this.preview.qrcode.complete) {
@@ -259,8 +256,9 @@
             let logox = qrx + (this.card.style.qrcodeSize - this.card.style.logoSize) / 2
             let logoy = qry + (this.card.style.qrcodeSize - this.card.style.logoSize) / 2
 
-            // 绘制背景
             this.drawRoundRect(ctx, logox, logoy, this.card.style.logoSize, this.card.style.logoSize, 4)
+             // 绘制背景
+            ctx.fillStyle = '#ffffff'
             ctx.fill()
 
             // 绘制logo
@@ -273,8 +271,16 @@
         // Icon
         console.log('icon', this.card.form.icon)
         if (this.card.form.icon !== '/img/default.jpeg') {
+          if (this.preview.icon.complete) {
+            console.log('draw icon')
+            // 等比缩放
+            let iconH = this.card.style.size / 2 - 40
+            let zoom = 1.0 / Math.max(this.preview.icon.width / this.card.style.size, this.preview.icon.height / iconH)
 
-
+            let qrx = offsetx + (this.card.style.size - this.preview.icon.width * zoom) / 2
+            let qry = offsety + this.card.style.size / 2 + 28 + (iconH - this.preview.icon.height * zoom) / 2
+            ctx.drawImage(this.preview.icon, qrx, qry, this.preview.icon.width * zoom, this.preview.icon.height * zoom)
+          }
         } else {
           console.log('title', this.card.form.title)
           // Title
@@ -294,9 +300,6 @@
           ctx.fillStyle = '#000000'
           ctx.fillText(title, offsetx + this.card.style.size / 2, offsety + this.card.style.size * 3.0 / 4 + 20 )
         }
-
-
-        
       },
       handleTitleChange(evt) {
         console.log('title changed')
@@ -380,6 +383,12 @@
       this.preview.qrcode = new Image()
       this.preview.qrcode.addEventListener('load', () => {
         console.log('img loaded')
+        this.previewCard()
+      })
+
+       this.preview.icon = new Image()
+      this.preview.icon.addEventListener('load', () => {
+        console.log('icon loaded')
         this.previewCard()
       })
 
