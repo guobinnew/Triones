@@ -2,7 +2,7 @@
   <div class="container" v-resize="onContainerResize">
       <Layout :style="{height: '100%',color:'#fff', textAlign:'left'}">
             <Sider hide-trigger width="300">
-              <Tree :data="tree" :render="renderContent"></Tree>
+              <Tree ref="tree" :data="tree.data" :render="renderContent"></Tree>
             </Sider>
             <Content :style="{overflow:'hidden', minWidth:'600px'}">
               <Row id="row" :style="{position:'relative',height:'100%'}">
@@ -20,7 +20,7 @@
                         style="display: inline-block; margin-right: 4px">
                         <Button icon="ios-cloud-upload-outline">Select icon file</Button>
                       </Upload>
-                      <Button type="primary" @click="handleClearIcon">Clear</Button>
+                      <Button type="warning" @click="handleClearIcon">Clear</Button>
                       <div class="upload-img">
                         <img id="iconImg" :src="card.form.icon">
                       </div>
@@ -29,7 +29,7 @@
                       <Input v-model="card.form.command" placeholder="Enter card command..." @on-change="handleCommandChange"></Input>
                     </FormItem>
                     <FormItem>
-                      <Button type="primary">Save</Button>
+                      <Button type="primary" @click="handleSaveCard">Save</Button>
                     </FormItem>
                   </Form>
                 </Col>
@@ -118,6 +118,7 @@
   import FileSaver from 'file-saver'
   import LocalForage from 'localforage'
   import QRCode from 'qrcode'
+  import Utils from '../utils'
 
   export default {
     components: {},
@@ -131,6 +132,7 @@
         card: {
           logo: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAEeElEQVR4Xu1bgXHUMBBcVQCpAFIBoQKSCoAKgAqACiAVkFQAqSBJBZAKIBWQVEBSgZjVyx+98dt7suQ3868ZZpiJX75b3e3tnf4dtny5LfcfOwB2EbDlCOxSYMsDYEeCuxSYTwr4xwCePdjjrqawbYMR4J8CeAngMP4jAO11A+AXgB8AzgB3VxqUDQAQHP8C4FWGM98AnAKOoBRZEwPgPwH4XMDyEwDHJSJiQgD8VwBvCzjfbMH0eD02GiYCwH+PeV7Q/7AVOeFoDAgTAOAZ8gz9Wosg7OemQ2UA/AGAn7U8T/YlMX7IeU9tAGqFfpevTAWWS9OqCEAod79N1ox7+BJw5tJaEwBr7t9GwUN2pyiiM0+MmOxZuaAmAMx9coCyWNM79IEnCBQ/j5RNALwDHJ+XV00AvGjFAIEFImVuKyCYybASAKGx+SMCIIStp4CikBpaV4BjbyGvWgDQCFaAoSUaLAMq7vdg1qYBMISsV1LqvwNgDfm1A0cWVGyZTf3GpiNArN2ynBYBrZICIU854KAA4v8VaSqGrFdLqlkNFogAT8Jjs2Ni33gGd4Db62dKk6IUKsrq20YAEPKSk50cx1Mr2NNfrAfBM5L4nqElRlMRAILzLHNdc7whQ9t/HyAuOfw/Ao6TItPKiACZkVVDetLAFP7PcwYjRgCCQSSkEicvpIHM/reAo23mZQWgVn+/Jg0822nFMXP9b5AyABDYXpG35lMAcAO4/dUPmlLNXP5yACBTs87XWpzrcRYQl2db+0Z4WXb4c28xAuRmRLB37SNJOQzvY/grXGNWf6kFKgCW8Odkh+WI01rq8hciKokjcvvLrVuRI74tPqYCoI637hekld7heQ4zFBBSAFTpew04derUiUxpADraW/k0IwAm8jOPwNoozBEAlfzuAadwRG9OqACoepx5T0UW2TyQGUunEqbHkTvUUZphmLIeAxUACwkShEaTc6qrOE8Lj2JjpV6jjSK/HB2gjKRsFLzytHOA5+krYS0OUobNESOAG/maQugSAPdXJr8xWuzXYF1wWACwpMEw9KtPMPzpvKL7Rym/zCpglqcWAHj61BnqLfLo0pehBJcAMD/J8MotjQJCFE4BgPfCB4qUvhEABC6wXFX1+UTnDxdDDJn8Run+kRyQfnw0CKnzFm4xDz2HospAgu2tgshhvVda1vTDZ4uRedMvyFOf7KFHHwgjAFjyAk+QXR9Fzzpu4ImzKTr591scniAq+T8wPR466+6/FwBgJTUIBktZU85ImJz29Hx1Re0WKZTKryqb2sy0AhBSjxFDyd33jVHqhWTCNEkE2FxfPK0CEErlabwkUS5ApYoxhwhQhy1WdCXBNAcASJ7nVu+E56WLkhkAENKA+VxKXXJDuV+YCwCl00C+J5wLAGR2Mrr1e4FdmWAalM4EgGI9BgXXgVL+GuRmBEAAgQKKg5Hkt0MC3S0euV6o0eHan+44MwCW8ppDWPKCQow8dcppymzzb4pmCsASCJbIZrCaRgVPu/kx1UWO480b/gILMS5Qwwr0BAAAAABJRU5ErkJggg==',
           form: {
+            uid: '',
             title: '',
             icon: '/img/default.jpeg',
             command: '',
@@ -144,26 +146,19 @@
             logoSize: 32
           }
         },
-        tree: [
+        tree: {
+          current: null,
+          nodeIndex: {},
+          data:[
           {
             title: 'Root',
             type: 'root',
             expand: true,
+            selected: false,
             children: [
-              {
-                title: 'c1',
-                type: 'category',
-                expand: true,
-                children: [
-                  {
-                    title: 'card1',
-                    type: 'card',
-                   },
-                ]
-              }
             ]
-          }
-        ],
+          }]
+        },
         buttonProps: {
           type: 'default',
           size: 'small',
@@ -286,15 +281,13 @@
           // Title
           let title = this.card.form.title
           let fontSize = 48
-          ctx.font = `bold ${fontSize}px Arial`
- 
-          let titleWidth = ctx.measureText(title).width
-          while ( titleWidth > (this.card.style.size - 40)){
+          let titleWidth = 0
+          do {
             // 调整字体大小
-            fontSize -= 2 
             ctx.font = `bold ${fontSize}px Arial`
             titleWidth = ctx.measureText(title).width
-          }
+            fontSize -= 2 
+          } while(titleWidth > (this.card.style.size - 40) )
 
           ctx.textAlign = 'center'
           ctx.fillStyle = '#000000'
@@ -308,67 +301,336 @@
       handleCommandChange(evt) {
         this.createQr( this.card.form.command)
       },
+      renameCategory (form) {
+        let value = form.title
+        this.$Modal.confirm({
+          render: (h) => {
+            return h('Input', {
+              props: {
+                value: form.title,
+                autofocus: true,
+              },
+              on: {
+                input: (val) => {
+                  value = val
+                }
+              }
+            })
+          },
+          onOk: () => {
+            form.title = value
+            form.form.title = value
+          }              
+        })
+      },
       renderContent (h, { root, node, data }) {
-                return h('span', {
-                    style: {
-                        display: 'inline-block',
-                        width: '100%'
-                    }
-                }, [
-                    h('span', [
-                        h('Icon', {
-                            props: {
-                                type: 'ios-paper-outline'
-                            },
-                            style: {
-                                marginRight: '8px'
-                            }
-                        }),
-                        h('span', data.title)
-                    ]),
-                    h('span', {
-                        style: {
-                            display: 'inline-block',
-                            float: 'right',
-                            marginRight: '32px'
-                        }
-                    }, [
-                        h('Button', {
-                            props: Object.assign({}, this.buttonProps, {
-                                icon: 'ios-add'
-                            }),
-                            style: {
-                                marginRight: '8px'
-                            },
-                            on: {
-                                click: () => { this.append(data) }
-                            }
-                        }),
-                        h('Button', {
-                            props: Object.assign({}, this.buttonProps, {
-                                icon: 'ios-remove'
-                            }),
-                            on: {
-                                click: () => { this.remove(root, node, data) }
-                            }
-                        })
-                    ])
-                ]);
-            },
-            append (data) {
-                const children = data.children || [];
-                children.push({
-                    title: 'appended node',
-                    expand: true
-                });
-                this.$set(data, 'children', children);
-            },
-            remove (root, node, data) {
-                const parentKey = root.find(el => el === node).parent;
-                const parent = root.find(el => el.nodeKey === parentKey).node;
-                const index = parent.children.indexOf(data);
-                parent.children.splice(index, 1);
+        console.log('tree-data', data)
+ 
+        let buttons = []
+        if (data.type === 'root') { // 根对象
+          buttons.push(
+             h('Button',
+              {
+                props: Object.assign({}, this.buttonProps, {
+                  icon: 'ios-add'
+                }),
+                style: {
+                  marginRight: '8px'
+                },
+                on: {
+                  click: () => { // 添加类目
+                    this.addCategory(data)
+                  }
+                }
+              })
+          )
+
+          buttons.push(
+             h('Button',
+              {
+                props: Object.assign({}, this.buttonProps, {
+                  icon: 'ios-folder-open'
+                }),
+                style: {
+                  marginRight: '8px'
+                },
+                on: {
+                  click: () => { // 从文件加载
+                   
+                  }
+                }
+              })
+          )
+
+          buttons.push(
+             h('Button',
+              {
+                props: Object.assign({}, this.buttonProps, {
+                  icon: 'ios-albums'
+                }),
+                style: {
+                  marginRight: '8px'
+                },
+                on: {
+                  click: () => { // 保存到文件
+                    
+                  }
+                }
+              })
+          )
+        } else if (data.type === 'category') { // 类目对象
+         buttons.push(
+             h('Button',
+              {
+                props: Object.assign({}, this.buttonProps, {
+                  icon: 'ios-add'
+                }),
+                style: {
+                  marginRight: '8px'
+                },
+                on: {
+                  click: () => { // 添加卡片
+                    this.addCard(data)
+                  }
+                }
+              })
+          )
+
+           buttons.push(
+             h('Button',
+              {
+                props: Object.assign({}, this.buttonProps, {
+                  icon: 'ios-brush'
+                }),
+                style: {
+                  marginRight: '8px'
+                },
+                on: {
+                  click: () => { // rename
+                    this.renameCategory(data)
+                  }
+                }
+              })
+          )
+
+          buttons.push(
+             h('Button',
+              {
+                props: Object.assign({}, this.buttonProps, {
+                  icon: 'ios-remove'
+                }),
+                style: {
+                  marginRight: '8px'
+                },
+                on: {
+                  click: () => { // 删除自己
+                    this.removeCategory(data.uid)
+                  }
+                }
+              })
+          )
+
+        } else if (data.type === 'card') { // 卡片对象
+         buttons.push(
+             h('Button',
+              {
+                props: Object.assign({}, this.buttonProps, {
+                  icon: 'ios-remove'
+                }),
+                style: {
+                  marginRight: '8px'
+                },
+                on: {
+                  click: () => { // 删除自己
+                    this.removeCard(data.uid)
+                  }
+                }
+              })
+          )
+        }
+
+        return h('span', 
+        {
+          style: {
+            display: 'inline-block',
+            width: '100%'
+          }
+        }, 
+        [
+          h('span', {
+            on: {
+              click: () => { // 选中
+                if (this.tree.current) {
+                  this.tree.current.selected = false
+                }
+                data.selected = true
+                this.tree.current = data 
+
+                // 更新属性
+                if ( data.type === 'card') {
+                  this.showCard(data)
+                }
+              }
             }
+          },
+          [
+            h('Icon', {
+              props: {
+                type: 'ios-paper-outline'
+              },
+              style: {
+                marginRight: '8px'
+              }
+            }),
+            h('span', {
+              style: {
+                background: data.selected ? '#fff' : 'transparent',
+                color: data.selected ? '#000' : '#fff',
+              }
+            },
+            data.title)
+          ]),
+          h('span', {
+            style: {
+              display: 'inline-block',
+              float: 'right',
+              marginRight: '32px'
+            }
+          }, 
+          buttons
+          )
+        ])
+      },
+      append (data) {
+        const children = data.children || [];
+        children.push({
+          title: 'appended node',
+          expand: true
+        });
+        this.$set(data, 'children', children);
+      },
+      remove (root, node, data) {
+        const parentKey = root.find(el => el === node).parent;
+        const parent = root.find(el => el.nodeKey === parentKey).node;
+        const index = parent.children.indexOf(data);
+        parent.children.splice(index, 1);
+      },
+      showCard (data){
+        console.log('showCard', data)
+        this.card.form.uid = data.uid
+        this.card.form.title = data.title
+        this.card.form.icon = data.form.icon
+        this.card.form.command = data.form.command
+        this.previewCard()
+      },
+      handleSaveCard() {
+        console.log(this.card.form.uid, this.tree.nodeIndex)
+        let host = this.tree.nodeIndex[this.card.form.uid]
+        if (!host) {
+          this.$Message.error('Node can not found!')
+          return
+        }
+        
+        host.title = this.card.form.title
+        host.form.title = this.card.title
+        host.form.icon = this.card.form.icon
+        host.form.command = this.card.form.command
+      },
+      addCategory(parent) {
+        let value = ''
+        this.$Modal.confirm({
+          render: (h) => {
+            return h('Input', {
+              props: {
+                value: value,
+                autofocus: true,
+                placeholder: 'Please enter category...'
+              },
+              on: {
+                input: (val) => {
+                  value = val
+                }
+              }
+            })
+          },
+          onOk: () => {
+            if ( value === '') {
+              return
+            }
+            let node = {
+              uid: Utils.common.uniqueId(),
+              title: value,
+              type: 'category',
+              expand: true,
+              selected: false,
+              children: []
+            }
+            this.tree.nodeIndex[node.uid] = node
+            parent.children.push(node)
+          }              
+        })
+      },
+      removeCategory(uid) {
+        let node = this.tree.nodeIndex[uid]
+        if (!node) {
+          return
+        }
+
+         if (node.type !== 'category') {
+          this.$Message.error('Node must be category!')
+          return
+        }
+
+        if (node.children.length > 0) {
+          this.$Message.error('Category must be empty!')
+          return
+        }
+
+        let index = this.tree.data.children.findIndex((value, index, arr) => {
+          return value.uid === uid
+        })
+        delete this.tree.nodeIndex[uid]
+        this.tree.data.children.splice(index,1)
+      },
+      addCard(parent) {
+        let node = {
+             uid: Utils.common.uniqueId(),
+              title: 'New Card',
+              type: 'card',
+              selected: false,
+              pid: parent.uid,
+              form: {
+                title: '',
+                icon: '/img/default.jpeg',
+                command: ''
+              }
+            }
+        this.tree.nodeIndex[node.uid] = node
+        parent.children.push(node)
+      },
+      removeCard(uid) {
+        let node = this.tree.nodeIndex[uid]
+        if (!node) {
+          return
+        }
+
+        if (node.type !== 'card') {
+          this.$Message.error('Node must be card!')
+          return
+        }
+
+        let parent = this.tree.nodeIndex[node.pid]
+        if (!parent) {
+          this.$Message.error('Parent Node is null!')
+          return
+        }
+
+        let index = parent.children.findIndex((value, index, arr) => {
+          return value.uid === uid
+        })
+        delete this.tree.nodeIndex[uid]
+        parent.children.splice(index,1)
+      }
     },
     mounted: function () {
       // 随窗口动态改变大小
@@ -386,7 +648,7 @@
         this.previewCard()
       })
 
-       this.preview.icon = new Image()
+      this.preview.icon = new Image()
       this.preview.icon.addEventListener('load', () => {
         console.log('icon loaded')
         this.previewCard()
