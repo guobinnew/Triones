@@ -288,6 +288,31 @@ const utils = {
 
       return arraybuffer
     }
+  },
+  dom: {
+    getDPI: function () {
+      let tmpNode = document.createElement('div')
+      tmpNode.style.cssText = 'width:1in;height:1in;position:absolute;left:0px;top:0px;z-index:99;visibility:hidden'
+      document.body.appendChild(tmpNode)
+      let dpi = []
+      dpi[0] = parseInt(tmpNode.offsetWidth)
+      dpi[1] = parseInt(tmpNode.offsetHeight)
+      tmpNode.parentNode.removeChild(tmpNode)
+      return dpi
+    },
+    imageToBase64: function (img, size = 128) {
+      if (!img) {
+        return null
+      }
+      // 计算缩放比例
+      let zoom = 1.0 / Math.max(img.width / size, img.height / size)
+      let canvas = document.createElement('canvas')
+      canvas.width = img.width * zoom
+      canvas.height = img.height * zoom
+      let ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      return canvas.toDataURL('image/png')
+    }
   }
 }
 

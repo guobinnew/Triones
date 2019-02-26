@@ -2,9 +2,9 @@
   <div class="container" v-resize="onContainerResize">
       <Layout :style="{height: '100%',color:'#fff', textAlign:'left'}">
             <Sider hide-trigger width="300">
-              <Tree ref="tree" :data="tree.data" :render="renderContent"></Tree>
+              <Tree ref="tree" :data="tree.data" :render="renderContent" class="card-tree"></Tree>
             </Sider>
-            <Content :style="{overflow:'hidden', minWidth:'600px'}">
+            <Content :style="{overflow:'hidden', minWidth:'640px', minHeight: '480px'}">
               <Row id="row" :style="{position:'relative',height:'100%'}">
                 <Col span="12" class="left-panel">
                   <Form :model="card.form" :label-width="80">
@@ -65,6 +65,10 @@
   margin-top: 10px;
 }
 
+.card-tree {
+  overflow-x: hidden;
+}
+
 .ivu-dropdown {
   margin-left: 10px;
 }
@@ -99,11 +103,13 @@
   padding: 10px;
   width: 50%;
   display: inline-block;
+  height: 100%;
 }
 
 .right-panel {
   padding: 0;
   overflow: hidden;
+  height: 100%;
 }
 
 .card-preview {
@@ -182,6 +188,8 @@
         this.size.width = this.$el.clientWidth
         this.size.height = this.$el.clientHeight
 
+        this.$el.querySelector('.card-tree').style.height = this.size.height + 'px'
+
         let row = this.$el.querySelector('#row')
         this.preview.canvas.width = row.clientWidth / 2
         this.preview.canvas.height = row.clientHeight
@@ -212,16 +220,16 @@
         this.card.form.icon = '/img/default.jpeg'
         this.previewCard()
       },
-      createQr ( text, size = 128 ) {
-        let canvas = document.createElement('canvas')
-	      canvas.width = size
-        canvas.height = size
+      createQr ( text, size = 256 ) {
+        if (text === '') {
+          return
+        }
+        
         QRCode.toDataURL(text, { 
           errorCorrectionLevel: 'H',
-          width: 256,
+          width: size,
           margin: 0 })
         .then(url => {
-          console.log(url)
           this.preview.qrcode.src = url
         })
         .catch(err => {
@@ -258,7 +266,6 @@
 
         // QrCode
         if (this.preview.qrcode.complete) {
-          console.log('draw image')
           let qrx = offsetx + (this.card.style.size - this.card.style.qrcodeSize) / 2
           let qry = 40
           ctx.drawImage(this.preview.qrcode, qrx, qry, this.card.style.qrcodeSize, this.card.style.qrcodeSize)
@@ -275,15 +282,12 @@
             // 绘制logo
             let margin = 2
             ctx.drawImage(this.preview.logo, logox + margin, logoy + margin, this.card.style.logoSize - margin * 2, this.card.style.logoSize - margin * 2)
-
           }
         }
 
         // Icon
-        console.log('icon', this.card.form.icon)
         if (this.card.form.icon !== '/img/default.jpeg') {
           if (this.preview.icon.complete) {
-            console.log('draw icon')
             // 等比缩放
             let iconH = this.card.style.size / 2 - 40
             let zoom = 1.0 / Math.max(this.preview.icon.width / this.card.style.size, this.preview.icon.height / iconH)
@@ -293,7 +297,6 @@
             ctx.drawImage(this.preview.icon, qrx, qry, this.preview.icon.width * zoom, this.preview.icon.height * zoom)
           }
         } else {
-          console.log('title', this.card.form.title)
           // Title
           let title = this.card.form.title
           let fontSize = 48
@@ -311,7 +314,6 @@
         }
       },
       handleTitleChange(evt) {
-        console.log('title changed')
         this.previewCard()
       },
       handleCommandChange(evt) {
@@ -339,9 +341,7 @@
           }              
         })
       },
-      renderContent (h, { root, node, data }) {
-        console.log('tree-data', data)
- 
+      renderContent (h, { root, node, data }) { 
         let buttons = []
         if (data.type === 'root') { // 根对象
           buttons.push(
@@ -406,7 +406,8 @@
                 },
                 on: {
                   click: () => { // 添加卡片
-                    this.addCard(data)
+                    let newCard = this.addCard(data)
+                    this.selectCard(newCard)
                   }
                 }
               })
@@ -474,18 +475,12 @@
         }, 
         [
           h('span', {
+            style: {
+              cursor: 'pointer'
+            },
             on: {
               click: () => { // 选中
-                if (this.tree.current) {
-                  this.tree.current.selected = false
-                }
-                data.selected = true
-                this.tree.current = data 
-
-                // 更新属性
-                if ( data.type === 'card') {
-                  this.showCard(data)
-                }
+                this.selectCard(data) 
               }
             }
           },
@@ -531,15 +526,28 @@
         const index = parent.children.indexOf(data);
         parent.children.splice(index, 1);
       },
+      selectCard(data) {
+        if (this.tree.current) {
+          this.tree.current.selected = false
+        }
+        if (data) {
+          data.selected = true
+          this.tree.current = data 
+
+          if (data.type === 'card') {
+            this.showCard(data)
+          }
+        }
+      },
       showCard (data){
         this.card.form.uid = data.uid
         this.card.form.title = data.title
         this.card.form.icon = data.form.icon
         this.card.form.command = data.form.command
+        this.createQr(this.card.form.command)
         this.previewCard()
       },
       handleSaveCard() {
-        console.log(this.card.form.uid, this.tree.nodeIndex)
         let host = this.tree.nodeIndex[this.card.form.uid]
         if (!host) {
           this.$Message.error('Node can not found!')
@@ -626,6 +634,7 @@
             }
         this.tree.nodeIndex[node.uid] = node
         parent.children.push(node)
+        return node
       },
       removeCard(uid) {
         let node = this.tree.nodeIndex[uid]
@@ -665,7 +674,8 @@
         reader.onload = (evt) => {
           // 读取js文件
           let json = JSON.parse(evt.target.result)
-          console.log(json)
+          this.$store.commit('updateInternalCache', Utils.common.clone(json))
+
           this.tree.nodeIndex = {}
           // 遍历树结构
           const walk = (node) => {
@@ -692,6 +702,33 @@
       loadFromFile() {
         this.$el.querySelector('#trionesfile').click()
       },
+      loadFromCache() {
+        if (!this.$store.getters.internalCache) {
+          return
+        }
+          // 读取js文件
+          let json = Utils.common.clone(this.$store.getters.internalCache)
+          this.tree.nodeIndex = {}
+          // 遍历树结构
+          const walk = (node) => {
+            if (Utils.common.isArray(node)) {
+              for(let n of node) {
+                walk(n)
+              }
+            } else if (Utils.common.isObject(node)){
+              node.selected = false
+              node.expand = true
+              if (node.type === 'category') {
+                if (!node.children) {
+                  node.children = []
+                }
+              }
+              this.tree.nodeIndex[node.uid] = node
+            }
+          }
+          walk(json)
+          this.tree.data[0].children = json
+      },
       saveToFile() {
           let json = []
           // 遍历树结构
@@ -701,7 +738,6 @@
                 walk(n, parent)
               }
             } else if (Utils.common.isObject(node)){
-              console.log('walk', node)
               let child = {
                 uid: node.uid,
                 title: node.title,
@@ -710,14 +746,16 @@
               if (node.type === 'category') {
                 child.children = []
                 walk(node.children, child.children)
-              } else {
-                child.icon = node.form.icon
-                child.command = node.form.command
+              } else if (node.type === 'card') {
+                child.form = Utils.common.clone(node.form)
               }
               parent.push(child)
             }
           }
           walk(this.tree.data[0].children, json)
+
+          // 缓存
+          this.$store.commit('updateInternalCache', json)
 
           let blob = new Blob([JSON.stringify(json)], {type: "text/plain;charset=utf-8"})
           FileSaver.saveAs(blob, 'Triones-' + Utils.common.currentDateString(true) + ".json")
@@ -728,20 +766,20 @@
       this.size.width = this.$el.clientWidth
       this.size.height = this.$el.clientHeight
 
+      this.$el.querySelector('.card-tree').style.height = this.size.height + 'px'
+
       this.preview.canvas = this.$el.querySelector('.card-preview')
       let row = this.$el.querySelector('#row')
-      this.preview.canvas.width = row.clientWidth / 2
-      this.preview.canvas.height = row.clientHeight
+      this.preview.canvas.width = (this.size.width - 300 ) / 2
+      this.preview.canvas.height = this.size.height
 
       this.preview.qrcode = new Image()
       this.preview.qrcode.addEventListener('load', () => {
-        console.log('img loaded')
         this.previewCard()
       })
 
       this.preview.icon = new Image()
       this.preview.icon.addEventListener('load', () => {
-        console.log('icon loaded')
         this.card.form.iconBase64 = this.imageTobase64(this.preview.icon)
         this.previewCard()
       })
@@ -749,6 +787,8 @@
       this.preview.logo = new Image()
       this.preview.logo.src = this.card.logo
       this.previewCard()
+
+      this.loadFromCache()
     }
   }
 </script>
