@@ -1,10 +1,9 @@
 import konva from 'konva'
 import uniqid from 'uniqid'
 import QRCode from 'qrcode'
-var  _  = require('lodash')
-var stringhash = require('string-hash')
+var _ = require('lodash')
 
-// A4 
+// A4
 // 842 × 595    72
 // 794 × 1123   96
 // 1487 × 2105  120
@@ -29,24 +28,24 @@ const _getDPI = function () {
   return dpi
 }
 
-const  _createQr = function (text, size, cb) {
+const _createQr = function (text, size, cb) {
   QRCode.toDataURL(text, {
     errorCorrectionLevel: 'H',
     width: size,
     margin: 0 })
-  .then(url => {
-    cb && cb(url)
-  })
-  .catch(err => {
-    console.error(err)
-  })
+    .then(url => {
+      cb && cb(url)
+    })
+    .catch(err => {
+      console.error(err)
+    })
 }
 
 /**
  * 编辑面板
  */
 class Stage {
-  constructor(options) {
+  constructor (options) {
     this.options = {
       draggable: true,
       canZoom: true,
@@ -125,7 +124,7 @@ class Stage {
    * 
    * @param {*} logo 
    */
-  setLogo(logo) {
+  setLogo (logo) {
     this.logo = logo
   }
 
@@ -134,8 +133,8 @@ class Stage {
    */
   addPage () {
     console.log('add page', this.pageSize)
-     // 创建模型
-     let group = new konva.Group({
+    // 创建模型
+    let group = new konva.Group({
       x: 40,
       y: 60,
       draggable: false,
@@ -464,6 +463,27 @@ class Stage {
 
     this.modelIndex = {}
     this.update()
+  }
+
+  /**
+   * 
+   */
+  toDataURL () {
+    let oldZoom = this.zoom
+    let oldPosition = this.stage.position()
+    this.reset()
+    let uri = this.page.toDataURL()
+    this.zoom = oldZoom
+    this.stage.scale({
+      x: this.zoom,
+      y: this.zoom
+    })
+    this.stage.position({
+      x: oldPosition.x,
+      y: oldPosition.y
+    })
+    this.update()
+    return uri
   }
 }
 

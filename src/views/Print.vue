@@ -97,7 +97,6 @@
   import resize from 'vue-resize-directive'
   import FileSaver from 'file-saver'
   import LocalForage from 'localforage'
-  import QRCode from 'qrcode'
   import Utils from '../utils'
   import Page from '../components/page/index'
 
@@ -168,18 +167,6 @@
         this.$el.querySelector('.card-tree').style.height = this.size.height + 'px'
         this.scene.stage.resize(this.size.width - 300, this.size.height)
       },
-      createQr ( node, size = 128 ) {
-        QRCode.toDataURL(text, { 
-          errorCorrectionLevel: 'H',
-          width: size,
-          margin: 0 })
-        .then(url => {
-          node.qrcode = url
-        })
-        .catch(err => {
-          console.error(err)
-        })
-      }, 
       loadFromCache() {
         if (!this.$store.getters.internalCache) {
           return
@@ -216,9 +203,18 @@
       reset() {
         this.scene.stage.reset()
       },
+      downloadURI(uri, name) {
+        let link = document.createElement('a')
+        link.download = name
+        link.href = uri
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      },
       print() {
         // 将当前页保存为图片
-
+        let uri = this.scene.stage.toDataURL()
+        this.downloadURI(uri, 'Triones-' + Utils.common.currentDateString(true) + '.png')
       },
       handleCheckCard(checked, current) {
         let arr = []
