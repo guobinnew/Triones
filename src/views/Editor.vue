@@ -8,6 +8,12 @@
               <Row id="row" :style="{position:'relative',height:'100%'}">
                 <Col span="12" class="left-panel">
                   <Form :model="card.form" :label-width="80">
+                     <FormItem label="Style">
+                      <RadioGroup v-model="card.shape" @on-change="handleStyleChange">
+                        <Radio label="single"><span>Single Side</span></Radio>
+                        <Radio label="double"><span>Double Sides</span></Radio>
+                      </RadioGroup>
+                    </FormItem>
                     <FormItem label="Title">
                       <Input v-model="card.form.title" placeholder="Enter card title..." @on-change="handleTitleChange"></Input>
                     </FormItem>
@@ -104,6 +110,7 @@
   width: 50%;
   display: inline-block;
   height: 100%;
+  color: #000;
 }
 
 .right-panel {
@@ -137,6 +144,7 @@
         },
         split: 0.3,
         card: {
+          shape: 'single',
           logo: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAEeElEQVR4Xu1bgXHUMBBcVQCpAFIBoQKSCoAKgAqACiAVkFQAqSBJBZAKIBWQVEBSgZjVyx+98dt7suQ3868ZZpiJX75b3e3tnf4dtny5LfcfOwB2EbDlCOxSYMsDYEeCuxSYTwr4xwCePdjjrqawbYMR4J8CeAngMP4jAO11A+AXgB8AzgB3VxqUDQAQHP8C4FWGM98AnAKOoBRZEwPgPwH4XMDyEwDHJSJiQgD8VwBvCzjfbMH0eD02GiYCwH+PeV7Q/7AVOeFoDAgTAOAZ8gz9Wosg7OemQ2UA/AGAn7U8T/YlMX7IeU9tAGqFfpevTAWWS9OqCEAod79N1ox7+BJw5tJaEwBr7t9GwUN2pyiiM0+MmOxZuaAmAMx9coCyWNM79IEnCBQ/j5RNALwDHJ+XV00AvGjFAIEFImVuKyCYybASAKGx+SMCIIStp4CikBpaV4BjbyGvWgDQCFaAoSUaLAMq7vdg1qYBMISsV1LqvwNgDfm1A0cWVGyZTf3GpiNArN2ynBYBrZICIU854KAA4v8VaSqGrFdLqlkNFogAT8Jjs2Ni33gGd4Db62dKk6IUKsrq20YAEPKSk50cx1Mr2NNfrAfBM5L4nqElRlMRAILzLHNdc7whQ9t/HyAuOfw/Ao6TItPKiACZkVVDetLAFP7PcwYjRgCCQSSkEicvpIHM/reAo23mZQWgVn+/Jg0822nFMXP9b5AyABDYXpG35lMAcAO4/dUPmlLNXP5yACBTs87XWpzrcRYQl2db+0Z4WXb4c28xAuRmRLB37SNJOQzvY/grXGNWf6kFKgCW8Odkh+WI01rq8hciKokjcvvLrVuRI74tPqYCoI637hekld7heQ4zFBBSAFTpew04derUiUxpADraW/k0IwAm8jOPwNoozBEAlfzuAadwRG9OqACoepx5T0UW2TyQGUunEqbHkTvUUZphmLIeAxUACwkShEaTc6qrOE8Lj2JjpV6jjSK/HB2gjKRsFLzytHOA5+krYS0OUobNESOAG/maQugSAPdXJr8xWuzXYF1wWACwpMEw9KtPMPzpvKL7Rym/zCpglqcWAHj61BnqLfLo0pehBJcAMD/J8MotjQJCFE4BgPfCB4qUvhEABC6wXFX1+UTnDxdDDJn8Run+kRyQfnw0CKnzFm4xDz2HospAgu2tgshhvVda1vTDZ4uRedMvyFOf7KFHHwgjAFjyAk+QXR9Fzzpu4ImzKTr591scniAq+T8wPR466+6/FwBgJTUIBktZU85ImJz29Hx1Re0WKZTKryqb2sy0AhBSjxFDyd33jVHqhWTCNEkE2FxfPK0CEErlabwkUS5ApYoxhwhQhy1WdCXBNAcASJ7nVu+E56WLkhkAENKA+VxKXXJDuV+YCwCl00C+J5wLAGR2Mrr1e4FdmWAalM4EgGI9BgXXgVL+GuRmBEAAgQKKg5Hkt0MC3S0euV6o0eHan+44MwCW8ppDWPKCQow8dcppymzzb4pmCsASCJbIZrCaRgVPu/kx1UWO480b/gILMS5Qwwr0BAAAAABJRU5ErkJggg==',
           form: {
             uid: '',
@@ -224,7 +232,7 @@
         if (text === '') {
           return
         }
-        
+
         QRCode.toDataURL(text, { 
           errorCorrectionLevel: 'H',
           width: size,
@@ -250,14 +258,19 @@
         ctx.lineTo(radius + x, height +y)
         ctx.arc(radius + x, height - radius + y, radius, Math.PI * 1 / 2, Math.PI)
         ctx.closePath()
-      },
+      },   
       previewCard() {
         this.clearCanvas()
 
-        let offsetx = (this.preview.canvas.width - this.card.style.size) / 2
-        let offsety = 20
         // 居中显示
         let ctx = this.preview.canvas.getContext("2d")
+        let offsetx = 0
+        let offsety = 0
+
+        if (this.card.shape === 'single') {
+          offsetx = (this.preview.canvas.width - this.card.style.size) / 2
+          offsety = 20
+       
         ctx.lineWidth = this.card.style.borderWidth
         ctx.fillStyle = '#ffffff'
         ctx.strokeStyle = this.card.style.borderColor
@@ -312,12 +325,103 @@
           ctx.fillStyle = '#000000'
           ctx.fillText(title, offsetx + this.card.style.size / 2, offsety + this.card.style.size * 3.0 / 4 + 20 )
         }
+
+        } else {
+          // 绘制正面
+          offsetx = (this.preview.canvas.width - this.card.style.size) / 2
+          offsety = 20
+          // 居中显示
+          ctx.lineWidth = this.card.style.borderWidth
+          ctx.fillStyle = '#ffffff'
+          ctx.strokeStyle = this.card.style.borderColor
+          ctx.fillRect(offsetx, offsety, this.card.style.size,  this.card.style.size)
+          ctx.strokeRect(offsetx, offsety, this.card.style.size,  this.card.style.size)
+
+          // Icon
+          if (this.card.form.icon !== '/img/default.jpeg') {
+            if (this.preview.icon.complete) {
+            // 等比缩放
+            let iconH = this.card.style.size - 40
+            let zoom = 1.0 / Math.max(this.preview.icon.width / iconH, this.preview.icon.height / iconH)
+
+            let qrx = offsetx + (this.card.style.size - this.preview.icon.width * zoom) / 2
+            let qry = offsety + (this.card.style.size - this.preview.icon.height * zoom) / 2
+            ctx.drawImage(this.preview.icon, qrx, qry, this.preview.icon.width * zoom, this.preview.icon.height * zoom)
+          }
+          } else {
+          // Title
+          let title = this.card.form.title
+          let fontSize = 96
+          let titleWidth = 0
+          do {
+            // 调整字体大小
+            ctx.font = `bold ${fontSize}px Arial`
+            titleWidth = ctx.measureText(title).width
+            fontSize -= 2 
+          } while(titleWidth > (this.card.style.size - 40) )
+
+          ctx.textAlign = 'center'
+          ctx.fillStyle = '#000000'
+          ctx.fillText(title, offsetx + this.card.style.size / 2, offsety + this.card.style.size / 2  + fontSize / 2)
+          }
+
+          // 绘制页脚
+          ctx.textAlign = 'left'
+          ctx.fillStyle = '#666666'
+          ctx.font = `normal 12px Arial`
+          ctx.fillText(this.card.form.uid, offsetx + 10, offsety + this.card.style.size - 10)
+
+          // 绘制背面
+          offsetx = (this.preview.canvas.width - this.card.style.size) / 2
+          offsety = 40 + this.card.style.size
+
+          // 居中显示
+          ctx.lineWidth = this.card.style.borderWidth
+          ctx.fillStyle = '#ffffff'
+          ctx.strokeStyle = this.card.style.borderColor
+          ctx.fillRect(offsetx, offsety, this.card.style.size,  this.card.style.size)
+          ctx.strokeRect(offsetx, offsety, this.card.style.size,  this.card.style.size)
+
+        // QrCode
+        if (this.preview.qrcode.complete) {
+          let qrx = offsetx + (this.card.style.size - this.card.style.qrcodeSize) / 2
+          let qry = offsety + (this.card.style.size - this.card.style.qrcodeSize) / 2
+          ctx.drawImage(this.preview.qrcode, qrx, qry, this.card.style.qrcodeSize, this.card.style.qrcodeSize)
+
+          if (this.preview.logo.complete) {
+            let logox = qrx + (this.card.style.qrcodeSize - this.card.style.logoSize) / 2
+            let logoy = qry + (this.card.style.qrcodeSize - this.card.style.logoSize) / 2
+
+            this.drawRoundRect(ctx, logox, logoy, this.card.style.logoSize, this.card.style.logoSize, 4)
+             // 绘制背景
+            ctx.fillStyle = '#ffffff'
+            ctx.fill()
+
+            // 绘制logo
+            let margin = 2
+            ctx.drawImage(this.preview.logo, logox + margin, logoy + margin, this.card.style.logoSize - margin * 2, this.card.style.logoSize - margin * 2)
+          }
+        }
+
+          // 绘制页脚
+          ctx.textAlign = 'left'
+          ctx.fillStyle = '#666666'
+          ctx.font = `normal 12px Arial`
+          ctx.fillText(this.card.form.uid, offsetx + 10, offsety + this.card.style.size - 10)
+
+
+        }
+
+        
       },
       handleTitleChange(evt) {
         this.previewCard()
       },
       handleCommandChange(evt) {
         this.createQr( this.card.form.command)
+      },
+      handleStyleChange () {
+        this.previewCard()
       },
       renameCategory (form) {
         let value = form.title
