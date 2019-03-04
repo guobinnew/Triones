@@ -46,7 +46,7 @@ const _createQr = function (text, size, cb) {
  * 编辑面板
  */
 class Stage {
-  constructor(options) {
+  constructor (options) {
     this.options = {
       draggable: true,
       canZoom: true,
@@ -80,6 +80,8 @@ class Stage {
     this.layers = {}
     // 创建图层
     this.modelIndex = {}
+    this.modeldefs = []
+
     this.layers.model = new konva.Layer()
     this.stage.add(this.layers.model)
 
@@ -226,320 +228,322 @@ class Stage {
   addModel(config) {
     const stage = this
     stage.modelIndex[config.uid] = []
-    if (config.shape === 'single') {
-      // 创建模型
-      let group = new konva.Group({
-        x: 0,
-        y: 0,
-        draggable: false,
-        name: 'card',
-        id: config.uid
-      })
-
-      group.setAttr('carddef', config)
-
-      // 背景图形
-      let bg = new konva.Rect({
-        x: 0,
-        y: 0,
-        width: this.modelStyle.size,
-        height: this.modelStyle.size,
-        fill: '#ffffff',
-        stroke: this.modelStyle.borderColor,
-        strokeWidth: this.modelStyle.borderWidth,
-        name: 'cardbg'
-      })
-      group.add(bg)
-
-      //qrcode / logo
-      if (config.form.command !== '') {
-        // 生成QrCode
-        let qrgroup = new konva.Group({
-          x: this.modelStyle.size / 4,
-          y: 20,
+    stage.modeldefs.push(config)
+    for (let m = 0; m < config.times; m++) {
+      if (config.shape === 1) {
+        // 创建模型
+        let group = new konva.Group({
+          x: 0,
+          y: 0,
           draggable: false,
           name: 'card',
           id: config.uid
         })
-
-        // qrcode
-        _createQr(config.form.command, 256, (url) => {
-          let qrImage = new Image()
-          qrImage.onload = function () {
-            // 等比缩放
-            let iconSize = stage.modelStyle.size / 2
-            let zoom = 1.0 / Math.max(qrImage.width / iconSize, qrImage.height / iconSize)
-            let qr = new konva.Image({
-              x: 0,
-              y: 0,
-              image: qrImage,
-              width: qrImage.width * zoom,
-              height: qrImage.height * zoom
+  
+        group.setAttr('carddef', config)
+  
+        // 背景图形
+        let bg = new konva.Rect({
+          x: 0,
+          y: 0,
+          width: this.modelStyle.size,
+          height: this.modelStyle.size,
+          fill: '#ffffff',
+          stroke: this.modelStyle.borderColor,
+          strokeWidth: this.modelStyle.borderWidth,
+          name: 'cardbg'
+        })
+        group.add(bg)
+  
+        //qrcode / logo
+        if (config.form.command !== '') {
+          // 生成QrCode
+          let qrgroup = new konva.Group({
+            x: this.modelStyle.size / 4,
+            y: 20,
+            draggable: false,
+            name: 'card',
+            id: config.uid
+          })
+  
+          // qrcode
+          _createQr(config.form.command, 256, (url) => {
+            let qrImage = new Image()
+            qrImage.onload = function () {
+              // 等比缩放
+              let iconSize = stage.modelStyle.size / 2
+              let zoom = 1.0 / Math.max(qrImage.width / iconSize, qrImage.height / iconSize)
+              let qr = new konva.Image({
+                x: 0,
+                y: 0,
+                image: qrImage,
+                width: qrImage.width * zoom,
+                height: qrImage.height * zoom
+              })
+              qrgroup.add(qr)
+              qr.moveToBottom()
+              stage.update()
+            }
+            qrImage.src = url
+          })
+  
+          // logo
+          if (this.logo) {
+            let logobg = new konva.Rect({
+              x: this.modelStyle.size * 3.0 / 16,
+              y: this.modelStyle.size * 3.0 / 16,
+              width: this.modelStyle.size / 8,
+              height: this.modelStyle.size / 8,
+              fill: '#ffffff',
+              cornerRadius: 4,
+              name: 'logobg'
             })
-            qrgroup.add(qr)
-            qr.moveToBottom()
+            qrgroup.add(logobg)
+  
+            let logo = new konva.Image({
+              x: this.modelStyle.size * 3.0 / 16,
+              y: this.modelStyle.size * 3.0 / 16,
+              image: this.logo,
+              width: this.modelStyle.size / 8,
+              height: this.modelStyle.size / 8
+            })
+            qrgroup.add(logo)
+          }
+          group.add(qrgroup)
+        }
+  
+        // icon / title
+        if (config.form.icon !== '/img/default.jpeg') {
+          let imageObj = new Image()
+          imageObj.onload = function () {
+            // 等比缩放
+            let iconSize = stage.modelStyle.size / 2 - 40
+            let zoom = 1.0 / Math.max(imageObj.width / iconSize, imageObj.height / iconSize)
+  
+            let icon = new konva.Image({
+              x: (stage.modelStyle.size - imageObj.width * zoom) / 2,
+              y: 20 + stage.modelStyle.size / 2 + (iconSize - imageObj.height * zoom) / 2,
+              image: imageObj,
+              width: imageObj.width * zoom,
+              height: imageObj.height * zoom
+            })
+            group.add(icon)
             stage.update()
           }
-          qrImage.src = url
-        })
-
-        // logo
-        if (this.logo) {
-          let logobg = new konva.Rect({
-            x: this.modelStyle.size * 3.0 / 16,
-            y: this.modelStyle.size * 3.0 / 16,
-            width: this.modelStyle.size / 8,
-            height: this.modelStyle.size / 8,
-            fill: '#ffffff',
-            cornerRadius: 4,
-            name: 'logobg'
+          imageObj.src = config.form.icon
+        } else {
+          // Name
+          let fontSize = this.modelStyle.fontSize
+          let title = new konva.Text({
+            x: 0,
+            y: 0,
+            text: config.title,
+            fontSize: fontSize,
+            fontStyle: 'bold',
+            fill: '#000',
+            verticalAlign: 'middle',
+            align: 'center'
           })
-          qrgroup.add(logobg)
-
-          let logo = new konva.Image({
-            x: this.modelStyle.size * 3.0 / 16,
-            y: this.modelStyle.size * 3.0 / 16,
-            image: this.logo,
-            width: this.modelStyle.size / 8,
-            height: this.modelStyle.size / 8
-          })
-          qrgroup.add(logo)
+  
+          while (title.width() > (this.modelStyle.size - 40)) {
+            fontSize -= 2
+            title.fontSize(fontSize)
+          }
+          title.offsetX(title.width() / 2)
+  
+          title.y(20 + this.modelStyle.size / 2 + (this.modelStyle.size / 2 - fontSize) / 2)
+          title.x(this.modelStyle.size / 2)
+  
+          group.add(title)
         }
-        group.add(qrgroup)
-      }
-
-      // icon / title
-      if (config.form.icon !== '/img/default.jpeg') {
-        let imageObj = new Image()
-        imageObj.onload = function () {
-          // 等比缩放
-          let iconSize = stage.modelStyle.size / 2 - 40
-          let zoom = 1.0 / Math.max(imageObj.width / iconSize, imageObj.height / iconSize)
-
-          let icon = new konva.Image({
-            x: (stage.modelStyle.size - imageObj.width * zoom) / 2,
-            y: 20 + stage.modelStyle.size / 2 + (iconSize - imageObj.height * zoom) / 2,
-            image: imageObj,
-            width: imageObj.width * zoom,
-            height: imageObj.height * zoom
-          })
-          group.add(icon)
-          stage.update()
-        }
-        imageObj.src = config.form.icon
+  
+        stage.page.add(group)
+        stage.modelIndex[config.uid].push(group)
       } else {
-        // Name
-        let fontSize = this.modelStyle.fontSize
-        let title = new konva.Text({
+        // 创建正面模型
+        let group = new konva.Group({
           x: 0,
           y: 0,
-          text: config.title,
-          fontSize: fontSize,
-          fontStyle: 'bold',
-          fill: '#000',
-          verticalAlign: 'middle',
-          align: 'center'
-        })
-
-        while (title.width() > (this.modelStyle.size - 40)) {
-          fontSize -= 2
-          title.fontSize(fontSize)
-        }
-        title.offsetX(title.width() / 2)
-
-        title.y(20 + this.modelStyle.size / 2 + (this.modelStyle.size / 2 - fontSize) / 2)
-        title.x(this.modelStyle.size / 2)
-
-        group.add(title)
-      }
-
-      stage.page.add(group)
-      stage.modelIndex[config.uid].push(group)
-    } else {
-      // 创建正面模型
-      let group = new konva.Group({
-        x: 0,
-        y: 0,
-        draggable: false,
-        name: 'card',
-        id: config.uid + '#0'
-      })
-
-      group.setAttr('carddef', config)
-
-      // 背景图形
-      let bg = new konva.Rect({
-        x: 0,
-        y: 0,
-        width: this.modelStyle.size,
-        height: this.modelStyle.size,
-        fill: '#ffffff',
-        stroke: this.modelStyle.borderColor,
-        strokeWidth: this.modelStyle.borderWidth,
-        name: 'cardbg'
-      })
-      group.add(bg)
-
-      // icon / title
-      if (config.form.icon !== '/img/default.jpeg') {
-        let imageObj = new Image()
-        imageObj.onload = function () {
-          // 等比缩放
-          let iconSize = stage.modelStyle.size - 40
-          let zoom = 1.0 / Math.max(imageObj.width / iconSize, imageObj.height / iconSize)
-
-          let icon = new konva.Image({
-            x: (stage.modelStyle.size - imageObj.width * zoom) / 2,
-            y: 20 + (iconSize - imageObj.height * zoom) / 2,
-            image: imageObj,
-            width: imageObj.width * zoom,
-            height: imageObj.height * zoom
-          })
-          group.add(icon)
-          stage.update()
-        }
-        imageObj.src = config.form.icon
-      } else {
-        // Name
-        let fontSize = this.modelStyle.fontSize * 2
-        let title = new konva.Text({
-          x: 0,
-          y: 0,
-          text: config.title,
-          fontSize: fontSize,
-          fontStyle: 'bold',
-          fill: '#000',
-          verticalAlign: 'middle',
-          align: 'center'
-        })
-
-        while (title.width() > (this.modelStyle.size - 40)) {
-          fontSize -= 2
-          title.fontSize(fontSize)
-        }
-        title.offsetX(title.width() / 2)
-
-        title.y(20 + (this.modelStyle.size - fontSize) / 2)
-        title.x(this.modelStyle.size / 2)
-
-        group.add(title)
-      }
-
-      let footer = new konva.Text({
-        x: 20,
-        y: 0,
-        text: config.uid,
-        fontSize: 12,
-        fontStyle: 'bold',
-        fill: '#666',
-        verticalAlign: 'middle',
-        align: 'left'
-      })
-      footer.y(this.modelStyle.size - 24)
-      group.add(footer)
-
-      stage.page.add(group)
-      stage.modelIndex[config.uid].push(group)
-
-      // 创建反面模型
-      let group2 = new konva.Group({
-        x: 0,
-        y: 0,
-        draggable: false,
-        name: 'card',
-        id: config.uid + '#0'
-      })
-
-      group2.setAttr('carddef', config)
-
-      // 背景图形
-      let bg2 = new konva.Rect({
-        x: 0,
-        y: 0,
-        width: this.modelStyle.size,
-        height: this.modelStyle.size,
-        fill: '#ffffff',
-        stroke: this.modelStyle.borderColor,
-        strokeWidth: this.modelStyle.borderWidth,
-        name: 'cardbg'
-      })
-      group2.add(bg2)
-
-      //qrcode / logo
-      if (config.form.command !== '') {
-        // 生成QrCode
-        let qrgroup = new konva.Group({
-          x: this.modelStyle.size / 4,
-          y: this.modelStyle.size / 4,
           draggable: false,
           name: 'card',
-          id: config.uid
+          id: config.uid + '#0'
         })
-
-        // qrcode
-        _createQr(config.form.command, 256, (url) => {
-          let qrImage = new Image()
-          qrImage.onload = function () {
+  
+        group.setAttr('carddef', config)
+  
+        // 背景图形
+        let bg = new konva.Rect({
+          x: 0,
+          y: 0,
+          width: this.modelStyle.size,
+          height: this.modelStyle.size,
+          fill: '#ffffff',
+          stroke: this.modelStyle.borderColor,
+          strokeWidth: this.modelStyle.borderWidth,
+          name: 'cardbg'
+        })
+        group.add(bg)
+  
+        // icon / title
+        if (config.form.icon !== '/img/default.jpeg') {
+          let imageObj = new Image()
+          imageObj.onload = function () {
             // 等比缩放
-            let iconSize = stage.modelStyle.size / 2
-            let zoom = 1.0 / Math.max(qrImage.width / iconSize, qrImage.height / iconSize)
-            let qr = new konva.Image({
-              x: 0,
-              y: 0,
-              image: qrImage,
-              width: qrImage.width * zoom,
-              height: qrImage.height * zoom
+            let iconSize = stage.modelStyle.size - 40
+            let zoom = 1.0 / Math.max(imageObj.width / iconSize, imageObj.height / iconSize)
+  
+            let icon = new konva.Image({
+              x: (stage.modelStyle.size - imageObj.width * zoom) / 2,
+              y: 20 + (iconSize - imageObj.height * zoom) / 2,
+              image: imageObj,
+              width: imageObj.width * zoom,
+              height: imageObj.height * zoom
             })
-            qrgroup.add(qr)
-            qr.moveToBottom()
+            group.add(icon)
             stage.update()
           }
-          qrImage.src = url
-        })
-
-        // logo
-        if (this.logo) {
-          let logobg = new konva.Rect({
-            x: this.modelStyle.size * 3.0 / 16,
-            y: this.modelStyle.size * 3.0 / 16,
-            width: this.modelStyle.size / 8,
-            height: this.modelStyle.size / 8,
-            fill: '#ffffff',
-            cornerRadius: 4,
-            name: 'logobg'
+          imageObj.src = config.form.icon
+        } else {
+          // Name
+          let fontSize = this.modelStyle.fontSize * 2
+          let title = new konva.Text({
+            x: 0,
+            y: 0,
+            text: config.title,
+            fontSize: fontSize,
+            fontStyle: 'bold',
+            fill: '#000',
+            verticalAlign: 'middle',
+            align: 'center'
           })
-          qrgroup.add(logobg)
-
-          let logo = new konva.Image({
-            x: this.modelStyle.size * 3.0 / 16,
-            y: this.modelStyle.size * 3.0 / 16,
-            image: this.logo,
-            width: this.modelStyle.size / 8,
-            height: this.modelStyle.size / 8
-          })
-          qrgroup.add(logo)
+  
+          while (title.width() > (this.modelStyle.size - 40)) {
+            fontSize -= 2
+            title.fontSize(fontSize)
+          }
+          title.offsetX(title.width() / 2)
+  
+          title.y(20 + (this.modelStyle.size - fontSize) / 2)
+          title.x(this.modelStyle.size / 2)
+  
+          group.add(title)
         }
-        group2.add(qrgroup)
-
-
+  
+        let footer = new konva.Text({
+          x: 20,
+          y: 0,
+          text: config.uid,
+          fontSize: 12,
+          fontStyle: 'bold',
+          fill: '#666',
+          verticalAlign: 'middle',
+          align: 'left'
+        })
+        footer.y(this.modelStyle.size - 24)
+        group.add(footer)
+  
+        stage.page.add(group)
+        stage.modelIndex[config.uid].push(group)
+  
+        // 创建反面模型
+        let group2 = new konva.Group({
+          x: 0,
+          y: 0,
+          draggable: false,
+          name: 'card',
+          id: config.uid + '#0'
+        })
+  
+        group2.setAttr('carddef', config)
+  
+        // 背景图形
+        let bg2 = new konva.Rect({
+          x: 0,
+          y: 0,
+          width: this.modelStyle.size,
+          height: this.modelStyle.size,
+          fill: '#ffffff',
+          stroke: this.modelStyle.borderColor,
+          strokeWidth: this.modelStyle.borderWidth,
+          name: 'cardbg'
+        })
+        group2.add(bg2)
+  
+        //qrcode / logo
+        if (config.form.command !== '') {
+          // 生成QrCode
+          let qrgroup = new konva.Group({
+            x: this.modelStyle.size / 4,
+            y: this.modelStyle.size / 4,
+            draggable: false,
+            name: 'card',
+            id: config.uid
+          })
+  
+          // qrcode
+          _createQr(config.form.command, 256, (url) => {
+            let qrImage = new Image()
+            qrImage.onload = function () {
+              // 等比缩放
+              let iconSize = stage.modelStyle.size / 2
+              let zoom = 1.0 / Math.max(qrImage.width / iconSize, qrImage.height / iconSize)
+              let qr = new konva.Image({
+                x: 0,
+                y: 0,
+                image: qrImage,
+                width: qrImage.width * zoom,
+                height: qrImage.height * zoom
+              })
+              qrgroup.add(qr)
+              qr.moveToBottom()
+              stage.update()
+            }
+            qrImage.src = url
+          })
+  
+          // logo
+          if (this.logo) {
+            let logobg = new konva.Rect({
+              x: this.modelStyle.size * 3.0 / 16,
+              y: this.modelStyle.size * 3.0 / 16,
+              width: this.modelStyle.size / 8,
+              height: this.modelStyle.size / 8,
+              fill: '#ffffff',
+              cornerRadius: 4,
+              name: 'logobg'
+            })
+            qrgroup.add(logobg)
+  
+            let logo = new konva.Image({
+              x: this.modelStyle.size * 3.0 / 16,
+              y: this.modelStyle.size * 3.0 / 16,
+              image: this.logo,
+              width: this.modelStyle.size / 8,
+              height: this.modelStyle.size / 8
+            })
+            qrgroup.add(logo)
+          }
+          group2.add(qrgroup)
+        }
+  
+        let footer2 = new konva.Text({
+          x: 20,
+          y: 0,
+          text: config.uid,
+          fontSize: 12,
+          fontStyle: 'bold',
+          fill: '#666',
+          verticalAlign: 'middle',
+          align: 'left'
+        })
+        footer2.y(this.modelStyle.size - 24)
+        group2.add(footer2)
+  
+        stage.page.add(group2)
+        stage.modelIndex[config.uid].push(group2)
       }
-
-      let footer2 = new konva.Text({
-        x: 20,
-        y: 0,
-        text: config.uid,
-        fontSize: 12,
-        fontStyle: 'bold',
-        fill: '#666',
-        verticalAlign: 'middle',
-        align: 'left'
-      })
-      footer2.y(this.modelStyle.size - 24)
-      group2.add(footer2)
-
-      stage.page.add(group2)
-      stage.modelIndex[config.uid].push(group2)
     }
+   
   }
 
   /**
@@ -646,6 +650,7 @@ class Stage {
     }
 
     this.modelIndex = {}
+    this.modeldefs = []
     this.update()
   }
 

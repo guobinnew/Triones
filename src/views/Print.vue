@@ -20,7 +20,10 @@
                         <DropdownItem name="single">Single Side</DropdownItem>
                         <DropdownItem name="double">Double Sides</DropdownItem>
                       </DropdownMenu>
-                    </Dropdown>
+                    </Dropdown>>
+                     <Select v-model="card.times" style="width:80px" @on-change="handleTimesChange">
+                       <Option v-for="item in card.validTimes" :value="item" :key="item.value">{{ item + '个' }}</Option>
+                     </Select>
                   </ButtonGroup>
               </Row>
               <Row class="pager">                 
@@ -66,6 +69,7 @@
 
 .ivu-dropdown {
   margin-left: 10px;
+  margin-right: 10px;
 }
 
 .split-pane{
@@ -119,7 +123,9 @@
         },
         card: {
           logo: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAEeElEQVR4Xu1bgXHUMBBcVQCpAFIBoQKSCoAKgAqACiAVkFQAqSBJBZAKIBWQVEBSgZjVyx+98dt7suQ3868ZZpiJX75b3e3tnf4dtny5LfcfOwB2EbDlCOxSYMsDYEeCuxSYTwr4xwCePdjjrqawbYMR4J8CeAngMP4jAO11A+AXgB8AzgB3VxqUDQAQHP8C4FWGM98AnAKOoBRZEwPgPwH4XMDyEwDHJSJiQgD8VwBvCzjfbMH0eD02GiYCwH+PeV7Q/7AVOeFoDAgTAOAZ8gz9Wosg7OemQ2UA/AGAn7U8T/YlMX7IeU9tAGqFfpevTAWWS9OqCEAod79N1ox7+BJw5tJaEwBr7t9GwUN2pyiiM0+MmOxZuaAmAMx9coCyWNM79IEnCBQ/j5RNALwDHJ+XV00AvGjFAIEFImVuKyCYybASAKGx+SMCIIStp4CikBpaV4BjbyGvWgDQCFaAoSUaLAMq7vdg1qYBMISsV1LqvwNgDfm1A0cWVGyZTf3GpiNArN2ynBYBrZICIU854KAA4v8VaSqGrFdLqlkNFogAT8Jjs2Ni33gGd4Db62dKk6IUKsrq20YAEPKSk50cx1Mr2NNfrAfBM5L4nqElRlMRAILzLHNdc7whQ9t/HyAuOfw/Ao6TItPKiACZkVVDetLAFP7PcwYjRgCCQSSkEicvpIHM/reAo23mZQWgVn+/Jg0822nFMXP9b5AyABDYXpG35lMAcAO4/dUPmlLNXP5yACBTs87XWpzrcRYQl2db+0Z4WXb4c28xAuRmRLB37SNJOQzvY/grXGNWf6kFKgCW8Odkh+WI01rq8hciKokjcvvLrVuRI74tPqYCoI637hekld7heQ4zFBBSAFTpew04derUiUxpADraW/k0IwAm8jOPwNoozBEAlfzuAadwRG9OqACoepx5T0UW2TyQGUunEqbHkTvUUZphmLIeAxUACwkShEaTc6qrOE8Lj2JjpV6jjSK/HB2gjKRsFLzytHOA5+krYS0OUobNESOAG/maQugSAPdXJr8xWuzXYF1wWACwpMEw9KtPMPzpvKL7Rym/zCpglqcWAHj61BnqLfLo0pehBJcAMD/J8MotjQJCFE4BgPfCB4qUvhEABC6wXFX1+UTnDxdDDJn8Run+kRyQfnw0CKnzFm4xDz2HospAgu2tgshhvVda1vTDZ4uRedMvyFOf7KFHHwgjAFjyAk+QXR9Fzzpu4ImzKTr591scniAq+T8wPR466+6/FwBgJTUIBktZU85ImJz29Hx1Re0WKZTKryqb2sy0AhBSjxFDyd33jVHqhWTCNEkE2FxfPK0CEErlabwkUS5ApYoxhwhQhy1WdCXBNAcASJ7nVu+E56WLkhkAENKA+VxKXXJDuV+YCwCl00C+J5wLAGR2Mrr1e4FdmWAalM4EgGI9BgXXgVL+GuRmBEAAgQKKg5Hkt0MC3S0euV6o0eHan+44MwCW8ppDWPKCQow8dcppymzzb4pmCsASCJbIZrCaRgVPu/kx1UWO480b/gILMS5Qwwr0BAAAAABJRU5ErkJggg==',
-          shape: 'single',
+          shape: 1,
+          times: 1,
+          validTimes: [1,2,3,6,9,18],
           form: {
             uid: '',
             title: '',
@@ -167,7 +173,7 @@
     },
     computed: {
       selectedTotal: function() {
-        return this.tree.nodeSelected.length
+        return this.tree.nodeSelected.length * this.card.times * this.card.shape 
       }
     },
     methods: {
@@ -178,14 +184,11 @@
         this.scene.stage.resize(this.size.width - 300, this.size.height)
       },
       handleStyleCommand(command) {
-        this.card.shape = command
-        let oldPageSize = this.pageSize
-        this.pageSize = (command === 'single') ? 18 : 9
-
-        if (oldPageSize < this.pageSize) {
-          this.currentPage = Math.floor(this.currentPage / 2) + 1
+        let oldShape =  this.card.shape
+        this.card.shape = (command === 'single' ? 1 : 2)
+        if (oldShape > this.card.shape) {
+          this.currentPage = Math.floor(total / 2) + 1
         }
-
         // 刷新显示
         this.showPage(this.currentPage)
       },
@@ -262,9 +265,10 @@
       showPage(pid) {
         // 根据页码提取Card
         let nodes = []
-        let start = (pid - 1) * this.pageSize
-        let end = pid * this.pageSize
-        for (let i=start; i<end; i++) {
+        let mpage = this.pageSize / (this.card.shape * this.card.times)
+        let start = Math.floor((pid - 1) * mpage)
+        let end = Math.floor(pid * mpage)
+        for (let i = start; i < end; i++) {
           if (i >= this.tree.nodeSelected.length) {
             break;
           }
@@ -274,13 +278,20 @@
         // 绘制页面
         this.scene.stage.clear()
         for (let n of nodes) {
-          this.scene.stage.addModel({...n, shape: this.card.shape})
+          this.scene.stage.addModel({...n, 
+          times: this.card.times,
+          shape: this.card.shape})
         }
         this.scene.stage.adjust()
       },
       handleChangePage(page) {
         this.currentPage = page
         this.showPage(this.currentPage)
+      },
+      handleTimesChange(value) {
+        console.log('aaa', this.card.times, value)
+        this.currentPage = 1
+        this.handleChangePage(this.currentPage)
       }
     },
     mounted: function () {
