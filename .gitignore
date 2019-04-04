@@ -4,6 +4,4 @@ logs/
 temp/
 bin/
 .DS_Store
-client/dist/
-dist/backend/
-dist/frontend/
+dist/
